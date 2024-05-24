@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Script by Steven Black
 # https://github.com/StevenBlack
@@ -26,14 +26,13 @@ def main():
         "${fmtentries} | "
         "[link](http://sbc.io/hosts/${location}hosts)"
     )
-    with open(README_DATA_FILENAME, "r") as f:
+    with open(README_DATA_FILENAME, "r", encoding="utf-8", newline="\n") as f:
         data = json.load(f)
 
     keys = list(data.keys())
-
     # Sort by the number of en-dashes in the key
     # and then by the key string itself.
-    keys.sort(key=lambda item: (item.count("-"), item))
+    keys.sort(key=lambda item: (item.replace("-only", "").count("-"), item.replace("-only", "")))
 
     toc_rows = ""
     for key in keys:
@@ -41,32 +40,41 @@ def main():
         if key == "base":
             data[key]["description"] = "Unified hosts = **(adware + malware)**"
         else:
-            data[key]["description"] = (
-                "Unified hosts **+ " + key.replace("-", " + ") + "**"
-            )
+            if data[key]["no_unified_hosts"]:
+                data[key]["description"] = (
+                    "**" + key.replace("-only", "").replace("-", " + ") + "**"
+                )
+            else:
+                data[key]["description"] = (
+                    "Unified hosts **+ " + key.replace("-", " + ") + "**"
+                )
+
+        if "\\" in data[key]["location"]:
+            data[key]["location"] = data[key]["location"].replace("\\", "/")
 
         toc_rows += s.substitute(data[key]) + "\n"
 
     row_defaults = {
         "name": "",
-        "description": "",
         "homeurl": "",
-        "frequency": "",
-        "issues": "",
         "url": "",
         "license": "",
         "issues": "",
+        "description": "",
     }
 
     t = Template(
-        "${name} | ${description} |[link](${homeurl})"
-        " | [raw](${url}) | ${frequency} | ${license}  | [issues](${issues}) "
+        "${name} |[link](${homeurl})"
+        " | [raw](${url}) | ${license} | [issues](${issues})| ${description}"
     )
-
+    size_history_graph = "![Size history](https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts_file_size_history.png)"
     for key in keys:
-        extensions = key.replace("-", ", ")
+        extensions = key.replace("-only", "").replace("-", ", ")
         extensions_str = "* Extensions: **" + extensions + "**."
-        extensions_header = "with " + extensions + " extensions"
+        if data[key]["no_unified_hosts"]:
+            extensions_header = "Limited to the extensions: " + extensions
+        else:
+            extensions_header = "Unified hosts file with " + extensions + " extensions"
 
         source_rows = ""
         source_list = data[key]["sourcesdata"]
@@ -77,8 +85,13 @@ def main():
             this_row.update(source)
             source_rows += t.substitute(this_row) + "\n"
 
-        with open(os.path.join(data[key]["location"], README_FILENAME), "wt") as out:
-            for line in open(README_TEMPLATE):
+        with open(
+            os.path.join(data[key]["location"], README_FILENAME),
+            "wt",
+            encoding="utf-8",
+            newline="\n",
+        ) as out:
+            for line in open(README_TEMPLATE, encoding="utf-8", newline="\n"):
                 line = line.replace(
                     "@GEN_DATE@", time.strftime("%B %d %Y", time.gmtime())
                 )
@@ -92,6 +105,14 @@ def main():
                 )
                 line = line.replace("@TOCROWS@", toc_rows)
                 line = line.replace("@SOURCEROWS@", source_rows)
+                # insert the size graph on the home readme only, for now.
+                if key == "base":
+                    line = line.replace(
+                        "@SIZEHISTORY@", size_history_graph
+                    )
+                else:
+                    line = line.replace("@SIZEHISTORY@", "")
+
                 out.write(line)
 
 
