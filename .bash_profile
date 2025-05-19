@@ -15,4 +15,4 @@ export CLICOLOR=1
 export LSCOLORS=ExFxBxDxCxegedabagacad
 alias ls='ls -GFh'
 source /usr/local/etc/grc.bashrc
-
+export HOMEBREW_NO_AUTO_UPDATE=1
